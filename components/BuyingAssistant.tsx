@@ -154,13 +154,6 @@ const BuyingAssistant: React.FC<BuyingAssistantProps> = ({ product, user, shelf,
                         <span className="text-[9px] font-bold block opacity-80">%</span>
                     </div>
                 </div>
-                
-                {/* NEW CONCISE SUMMARY (Visible to All) */}
-                <div className="pt-3 border-t border-white/20">
-                     <p className="text-[11px] font-medium leading-relaxed opacity-90">
-                        {verdict.description}
-                     </p>
-                </div>
             </div>
         </div>
 

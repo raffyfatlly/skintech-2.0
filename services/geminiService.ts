@@ -94,14 +94,15 @@ export const analyzeProductFromSearch = async (productName: string, userMetrics:
         const prompt = `
         TASK: Identify and provide a DEEP HOLISTIC ANALYSIS for "${productName}" by "${knownBrand || "Unknown"}".
         
-        1. GROUNDING: Use Google Search to find high-authority INCI data.
-        2. PERSONALIZATION: Compare active ingredients against this user profile: ${JSON.stringify(userMetrics)}.
+        1. GROUNDING: Use Google Search to find high-authority INCI data (e.g. INCIDecoder style).
+        2. IMAGE: Locate a high-quality product image URL (preferably with a white background) from official retailer sites (Watsons, Sephora, Guardian).
+        3. PERSONALIZATION: Compare active ingredients against this user profile: ${JSON.stringify(userMetrics)}.
         
         OUTPUT FORMAT (STRICT JSON):
         {
             "name": "Full Product Name",
             "brand": "Brand",
-            "imageUrl": "string",
+            "imageUrl": "string (URL to high-res product shot)",
             "type": "MOISTURIZER" | "SERUM" | "CLEANSER" | etc.,
             "ingredients": ["string"],
             "estimatedPrice": Number (MYR),
@@ -110,8 +111,8 @@ export const analyzeProductFromSearch = async (productName: string, userMetrics:
             "benefits": [{ "ingredient": "Name", "target": "MetricKey", "description": "Why" }],
             "pros": ["string"],
             "cons": ["string"],
-            "scientificVerdict": "Concise verdict",
-            "usageAdvice": "Concise advice"
+            "scientificVerdict": "string",
+            "usageAdvice": "string"
         }
         `;
 
@@ -157,14 +158,15 @@ export const analyzeProductImage = async (base64: string, userMetrics: SkinMetri
         
         const prompt = `
         TASK:
-        1. IDENTIFY: Scan the provided image to identify the product name and brand.
-        2. ANALYZE: Estimate INCI ingredients based on product identity.
-        3. CHECK: Perform a suitability check for user: ${JSON.stringify(userMetrics)}.
+        1. IDENTIFY: Scan the provided image.
+        2. SEARCH: Use Google Search to cross-reference INCI data, current MYR pricing, and locate a HIGH-QUALITY canonical product image URL (white background preferred).
+        3. DEEP ANALYSIS: Perform a HOLISTIC suitablity check for this specific user: ${JSON.stringify(userMetrics)}.
 
         OUTPUT FORMAT (STRICT JSON):
         {
             "name": "string",
             "brand": "string",
+            "imageUrl": "string (High-res URL)",
             "type": "MOISTURIZER" | "SERUM" | "CLEANSER" | etc.,
             "ingredients": ["string"],
             "estimatedPrice": Number (MYR),
@@ -173,13 +175,11 @@ export const analyzeProductImage = async (base64: string, userMetrics: SkinMetri
             "benefits": [{ "ingredient": "Name", "target": "MetricKey", "description": "Why" }],
             "pros": ["string"],
             "cons": ["string"],
-            "scientificVerdict": "Concise 2-sentence verdict.",
-            "usageAdvice": "One sentence usage advice."
+            "scientificVerdict": "string",
+            "usageAdvice": "string"
         }
         `;
 
-        // Note: Removed googleSearch tool from image analysis to improve response speed and reliability.
-        // The model's internal knowledge is sufficient for most product identification.
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
             contents: {
@@ -189,15 +189,22 @@ export const analyzeProductImage = async (base64: string, userMetrics: SkinMetri
                 ]
             },
             config: { 
+                tools: [{googleSearch: {}}],
                 responseMimeType: 'application/json',
                 temperature: 0.1 
             }
         });
 
         const data = parseJSONFromText(response.text || "{}");
-        if (!data || data.name === "Identification Failed" || !data.name) {
+        if (!data || data.name === "Identification Failed") {
             throw new Error("Label not recognized. Ensure the product name is centered.");
         }
+
+        const grounding = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+        const sourceUrls = grounding?.map((c: any) => ({ 
+            title: c.web?.title || "Verification Link", 
+            uri: c.web?.uri 
+        })).filter((s: any) => s.uri) || [];
 
         return {
             id: Date.now().toString(),
@@ -214,7 +221,7 @@ export const analyzeProductImage = async (base64: string, userMetrics: SkinMetri
             cons: data.cons || [],
             scientificVerdict: data.scientificVerdict || "",
             usageAdvice: data.usageAdvice || "",
-            sourceUrls: [], // Search removed for speed
+            sourceUrls,
             dateScanned: Date.now()
         };
     }); 
