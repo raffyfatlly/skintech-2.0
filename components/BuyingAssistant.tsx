@@ -57,7 +57,8 @@ const BuyingAssistant: React.FC<BuyingAssistantProps> = ({ product, user, shelf,
   };
 
   // Reusable Blurred Section Component
-  const PremiumSection = ({ children, title, icon: Icon, delay = 0 }: { children: React.ReactNode, title: string, icon: any, delay?: number }) => {
+  // Fix: Make children optional in the type definition to resolve property 'children' is missing error in JSX usage
+  const PremiumSection = ({ children, title, icon: Icon, delay = 0 }: { children?: React.ReactNode, title: string, icon: any, delay?: number }) => {
       // Placeholder content used ONLY if absolutely no children are provided
       const placeholderContent = (
           <div className="space-y-2 opacity-100">

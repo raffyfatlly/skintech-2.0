@@ -73,12 +73,54 @@ export const searchProducts = async (query: string): Promise<{ name: string, bra
 
 export const analyzeFaceSkin = async (image: string, localMetrics: SkinMetrics, history?: SkinMetrics[]): Promise<SkinMetrics> => {
     return runWithRetry<SkinMetrics>(async (ai) => {
+        const prompt = `
+        TASK: Act as an elite Clinical Skin Diagnostic AI. Provide a sharp, holistic, and intelligently deep analysis.
+        
+        HOLISTIC CONTEXT AWARENESS:
+        1. SURROUNDINGS: Analyze lighting (harsh, warm, low), makeup presence (concealer, foundation), and photo clarity. 
+        2. BEHAVIORAL LOGIC: If lighting is yellow, adjust redness interpretation. If makeup is detected, acknowledge it masks certain metrics but still provide a sharp prediction of the underlying state.
+        3. INTELLIGENT DEPTH: Explain relationships (e.g., "Surface oiliness suggests a compensatory response to underlying barrier dehydration").
+        
+        SHARP SCORING RECALIBRATION:
+        The provided computer-vision baselines are just a HINT: ${JSON.stringify(localMetrics)}. 
+        RECALIBRATE them based on your superior visual intelligence. 
+        DIRECTION: For ALL scores, HIGHER is BETTER (100 = Perfect/No issue). 
+        - ACNE SCARS: Presence of scars MUST result in a LOW score. (0 = Significant scarring, 100 = No scars).
+        - ACNE ACTIVE: Presence of active spots MUST result in a LOW score.
+        Be honest and accurate. If the photo looks clearer than the baseline, raise the score. If it looks worse, lower it.
+        
+        NARRATIVE REQUIREMENTS:
+        - LANGUAGE: Use easy, simple layman terms like "Acne", "Scars", "Spots", "Pores", "Water/Oil balance".
+        - HIGHLIGHTING: Wrap critical terms or key findings in double asterisks (e.g., "**visible scars on the cheek**").
+        - TONE: Clinical yet accessible. Start with "Visual analysis reveals..." or "The individual displays...".
+        
+        OUTPUT FORMAT (STRICT JSON):
+        {
+            "overallScore": number (0-100),
+            "skinAge": number,
+            "acneActive": number,
+            "acneScars": number,
+            "redness": number,
+            "hydration": number,
+            "texture": number,
+            "wrinkleFine": number,
+            "pigmentation": number,
+            "analysisSummary": "Write 5-6 sentences of deep, contextual analysis. Highlight critical terms with **.",
+            "observations": {
+                "acneActive": "Sharp contextual detail",
+                "acneScars": "Sharp contextual detail",
+                "pigmentation": "Sharp detail on spots",
+                "redness": "Lighting-aware detail"
+            }
+        }
+        `;
+
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
             contents: {
                 parts: [
                     { inlineData: { mimeType: 'image/jpeg', data: image.split(',')[1] } },
-                    { text: `Analyze skin: ${JSON.stringify(localMetrics)}. Return JSON metrics.` }
+                    { text: prompt }
                 ]
             },
             config: { responseMimeType: 'application/json' }
@@ -91,30 +133,7 @@ export const analyzeFaceSkin = async (image: string, localMetrics: SkinMetrics, 
 
 export const analyzeProductFromSearch = async (productName: string, userMetrics: SkinMetrics, consistencyScore?: number, knownBrand?: string): Promise<Product> => {
     return runWithRetry<Product>(async (ai) => {
-        const prompt = `
-        TASK: Identify and provide a DEEP HOLISTIC ANALYSIS for "${productName}" by "${knownBrand || "Unknown"}".
-        
-        1. GROUNDING: Use Google Search to find high-authority INCI data (e.g. INCIDecoder style).
-        2. IMAGE: Locate a high-quality product image URL (preferably with a white background) from official retailer sites (Watsons, Sephora, Guardian).
-        3. PERSONALIZATION: Compare active ingredients against this user profile: ${JSON.stringify(userMetrics)}.
-        
-        OUTPUT FORMAT (STRICT JSON):
-        {
-            "name": "Full Product Name",
-            "brand": "Brand",
-            "imageUrl": "string (URL to high-res product shot)",
-            "type": "MOISTURIZER" | "SERUM" | "CLEANSER" | etc.,
-            "ingredients": ["string"],
-            "estimatedPrice": Number (MYR),
-            "suitabilityScore": Number (0-99),
-            "risks": [{ "ingredient": "Name", "riskLevel": "HIGH", "reason": "Why" }],
-            "benefits": [{ "ingredient": "Name", "target": "MetricKey", "description": "Why" }],
-            "pros": ["string"],
-            "cons": ["string"],
-            "scientificVerdict": "string",
-            "usageAdvice": "string"
-        }
-        `;
+        const prompt = `Analyze "${productName}" by "${knownBrand || "Unknown"}". User Skin: ${JSON.stringify(userMetrics)}. JSON only.`;
 
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
@@ -155,30 +174,7 @@ export const analyzeProductFromSearch = async (productName: string, userMetrics:
 
 export const analyzeProductImage = async (base64: string, userMetrics: SkinMetrics): Promise<Product> => {
     return runWithRetry<Product>(async (ai) => {
-        
-        const prompt = `
-        TASK:
-        1. IDENTIFY: Scan the provided image.
-        2. SEARCH: Use Google Search to cross-reference INCI data, current MYR pricing, and locate a HIGH-QUALITY canonical product image URL (white background preferred).
-        3. DEEP ANALYSIS: Perform a HOLISTIC suitablity check for this specific user: ${JSON.stringify(userMetrics)}.
-
-        OUTPUT FORMAT (STRICT JSON):
-        {
-            "name": "string",
-            "brand": "string",
-            "imageUrl": "string (High-res URL)",
-            "type": "MOISTURIZER" | "SERUM" | "CLEANSER" | etc.,
-            "ingredients": ["string"],
-            "estimatedPrice": Number (MYR),
-            "suitabilityScore": Number (0-99),
-            "risks": [{ "ingredient": "Name", "riskLevel": "HIGH", "reason": "Why" }],
-            "benefits": [{ "ingredient": "Name", "target": "MetricKey", "description": "Why" }],
-            "pros": ["string"],
-            "cons": ["string"],
-            "scientificVerdict": "string",
-            "usageAdvice": "string"
-        }
-        `;
+        const prompt = `Identify and analyze product. User: ${JSON.stringify(userMetrics)}. JSON only.`;
 
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
@@ -197,7 +193,7 @@ export const analyzeProductImage = async (base64: string, userMetrics: SkinMetri
 
         const data = parseJSONFromText(response.text || "{}");
         if (!data || data.name === "Identification Failed") {
-            throw new Error("Label not recognized. Ensure the product name is centered.");
+            throw new Error("Label not recognized.");
         }
 
         const grounding = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
@@ -237,7 +233,7 @@ export const auditProduct = (product: Product, user: UserProfile) => {
     return {
         adjustedScore: Math.max(0, Math.min(100, adjustedScore)),
         warnings,
-        analysisReason: warnings.length > 0 ? warnings[0].reason : "Good formulation match."
+        analysisReason: warnings.length > 0 ? warnings[0].reason : "This looks like a great match for your skin."
     };
 };
 
@@ -254,15 +250,11 @@ export const analyzeShelfHealth = (products: Product[], user: UserProfile) => {
     else if (avgScore > 75) grade = 'A';
     else if (avgScore > 60) grade = 'B';
 
-    const riskyProducts = products.filter(p => p.suitabilityScore < 50).map(p => ({
-        name: p.name, reason: "Low suitability score", severity: "CAUTION"
-    }));
-
     return {
         analysis: {
             grade,
             conflicts: [],
-            riskyProducts,
+            riskyProducts: [],
             missing,
             redundancies: [],
             upgrades: [],
@@ -272,19 +264,18 @@ export const analyzeShelfHealth = (products: Product[], user: UserProfile) => {
 };
 
 export const analyzeProductContext = (product: Product, shelf: Product[]) => {
-    const typeCount = shelf.filter(p => p.type === product.type && p.id !== product.id).length;
-    return { conflicts: [], typeCount };
+    return { conflicts: [], typeCount: shelf.filter(p => p.type === product.type).length };
 };
 
 export const getClinicalTreatmentSuggestions = (user: UserProfile) => {
-    return [{ type: 'FACIAL', name: 'Hydra-Infusion', benefit: 'Deep moisture boost', downtime: 'None' }];
+    return [{ type: 'FACIAL', name: 'Hydra-Infusion', benefit: 'Deep moisture for thirsty skin', downtime: 'None' }];
 };
 
 export const createDermatologistSession = (user: UserProfile, shelf: Product[]): Chat => {
     return ai.chats.create({
         model: 'gemini-3-flash-preview',
         config: {
-             systemInstruction: `You are a helpful dermatologist. User metrics: ${JSON.stringify(user.biometrics)}. Shelf: ${JSON.stringify(shelf.map(p => p.name))}.`
+             systemInstruction: `You are a friendly skin coach. User skin: ${JSON.stringify(user.biometrics)}. Shelf: ${JSON.stringify(shelf.map(p => p.name))}.`
         }
     });
 };
@@ -294,7 +285,7 @@ export const isQuotaError = (e: any) => e?.message?.includes('429') || e?.status
 export const getBuyingDecision = (product: Product, shelf: Product[], user: UserProfile) => {
     const audit = auditProduct(product, user);
     return {
-        verdict: { decision: 'CONSIDER', title: 'Analysis', description: audit.analysisReason, color: 'teal' },
+        verdict: { decision: 'CONSIDER', title: 'Good Match', description: audit.analysisReason, color: 'teal' },
         audit,
         shelfConflicts: [], 
         comparison: { result: 'NEUTRAL' }
@@ -305,7 +296,7 @@ export const generateRoutineRecommendations = async (user: UserProfile): Promise
     return runWithRetry<any>(async (ai) => {
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: `Generate AM/PM routine for ${JSON.stringify(user.biometrics)}. Return JSON.`,
+            contents: `Create a simple morning/night routine for this user: ${JSON.stringify(user.biometrics)}. Format: JSON.`,
             config: { responseMimeType: 'application/json' }
         });
         return parseJSONFromText(response.text || "{}");
