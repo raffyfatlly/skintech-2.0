@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { SkinMetrics, Product, UserProfile } from '../types';
 import { auditProduct, getClinicalTreatmentSuggestions } from '../services/geminiService';
@@ -306,7 +307,7 @@ const SkinAnalysisReport: React.FC<SkinAnalysisReportProps> = ({ userProfile, sh
   
   const [isChartVisible, setIsChartVisible] = useState(false);
   const chartRef = useRef<HTMLDivElement>(null);
-  const treatmentRef = useRef<HTMLDivElement>(null); // New ref for auto-scrolling
+  const treatmentRef = useRef<HTMLDivElement>(null);
 
   // If user is premium, features are unlocked by default
   const [isPremiumUnlocked, setIsPremiumUnlocked] = useState(!!userProfile.isPremium);
@@ -472,24 +473,29 @@ const SkinAnalysisReport: React.FC<SkinAnalysisReportProps> = ({ userProfile, sh
     let concern = "Maintenance";
     let strength = "General Health";
     let strategy = "Continue current routine.";
+    let description = "Biometric analysis indicates your skin is functioning within optimal parameters, showing good barrier integrity and resilience.";
 
-    const lowestMetric = Object.entries(metrics)
-        .filter(([k]) => typeof metrics[k as keyof SkinMetrics] === 'number')
-        .sort((a,b) => (a[1] as number) - (b[1] as number))[0];
+    // Sort to find absolute lowest metrics
+    const lowestMetrics = Object.entries(metrics)
+        .filter(([k]) => typeof metrics[k as keyof SkinMetrics] === 'number' && k !== 'overallScore' && k !== 'skinAge' && k !== 'timestamp')
+        .sort((a,b) => (a[1] as number) - (b[1] as number));
     
-    const highestMetric = Object.entries(metrics)
-        .filter(([k]) => typeof metrics[k as keyof SkinMetrics] === 'number')
-        .sort((a,b) => (b[1] as number) - (a[1] as number))[0];
+    // Sort to find highest metrics
+    const highestMetrics = Object.entries(metrics)
+        .filter(([k]) => typeof metrics[k as keyof SkinMetrics] === 'number' && k !== 'overallScore' && k !== 'skinAge' && k !== 'timestamp')
+        .sort((a,b) => (b[1] as number) - (a[1] as number));
 
-    const lowKey = lowestMetric[0];
-    const lowVal = lowestMetric[1] as number;
-    const highKey = highestMetric[0];
+    const lowKey = lowestMetrics[0][0];
+    const lowVal = lowestMetrics[0][1] as number;
+    const highKey = highestMetrics[0][0];
 
     // MAPPING READABLE NAMES
     const niceNames: Record<string, string> = {
         acneActive: "Clear Skin", acneScars: "Even Texture", hydration: "Hydration Barrier",
         redness: "Skin Calmness", oiliness: "Oil Control", wrinkleFine: "Elasticity",
-        poreSize: "Pore Tightness", texture: "Surface Smoothness", pigmentation: "Even Tone"
+        poreSize: "Pore Tightness", texture: "Surface Smoothness", pigmentation: "Even Tone",
+        darkCircles: "Under-eye Brightness", sagging: "Firmness", wrinkleDeep: "Deep Structure",
+        blackheads: "Pore Clarity"
     };
 
     strength = niceNames[highKey] || "Resilience";
@@ -501,22 +507,32 @@ const SkinAnalysisReport: React.FC<SkinAnalysisReportProps> = ({ userProfile, sh
         if (lowKey === 'hydration') {
             title = "Barrier Compromised";
             concern = "Severe Dehydration";
-            strategy = "Focus exclusively on repair and hydration. Stop all actives.";
+            description = "Computer vision analysis indicates high transepidermal water loss. The stratum corneum appears compromised, leading to dullness and potential sensitivity.";
+            strategy = "Immediate barrier repair with Ceramides & Occlusives.";
         } else if (lowKey === 'redness') {
             title = "High Reactivity";
-            concern = "Inflammation";
-            strategy = "Skin is currently hypersensitive. Simplify routine to basics.";
+            concern = "Erythema";
+            description = "Detected significant vascular dilation and redness. Your skin is in a hyper-reactive state, likely due to barrier impairment or environmental aggressors.";
+            strategy = "Anti-inflammatory diet & topical Centella Asiatica.";
         } else if (lowKey === 'acneActive') {
             title = "Active Congestion";
-            concern = "Breakouts";
-            strategy = "Introduce salicylic acid and avoid comedogenic oils.";
+            concern = "Inflammatory Acne";
+            description = "Biometrics show clusters of inflammatory markers consistent with Grade 2-3 acne. Oil regulation is currently suboptimal.";
+            strategy = "Introduce BHA (Salicylic Acid) & Non-comedogenic hydration.";
         } else if (lowKey === 'wrinkleFine') {
             title = "Elasticity Loss";
             concern = "Premature Aging";
-            strategy = "Consider introducing retinoids and increasing collagen intake.";
+            description = "Shadow analysis reveals static fine lines exceeding the average for your age group, suggesting early collagen degradation.";
+            strategy = "Accelerate turnover with Retinoids & Peptides.";
+        } else if (lowKey === 'texture') {
+            title = "Surface Irregularity";
+            concern = "Roughness";
+            description = "High variance in surface topography detected. This unevenness prevents light reflection, causing dull appearance.";
+            strategy = "Chemical exfoliation (AHA) to resurface texture.";
         } else {
             title = "Attention Required";
             concern = niceNames[lowKey] || "Unbalanced";
+            description = `Your ${concern.toLowerCase()} markers are critically low, indicating a need for targeted intervention to restore dermal balance.`;
             strategy = `Target ${concern.toLowerCase()} with focused treatments.`;
         }
     } else if (lowVal < 75) {
@@ -524,15 +540,23 @@ const SkinAnalysisReport: React.FC<SkinAnalysisReportProps> = ({ userProfile, sh
         color = "from-amber-400 to-orange-500";
         if (lowKey === 'hydration') {
             title = "Moisture Deficit";
-            concern = "Dryness";
-            strategy = "Increase humectants (Hyaluronic Acid) in AM/PM routine.";
+            concern = "Dehydration";
+            description = "Surface hydration levels are suboptimal. While the barrier is intact, it lacks the water content needed for that 'plump' look.";
+            strategy = "Increase humectants (Hyaluronic Acid/Glycerin).";
         } else if (lowKey === 'oiliness') {
             title = "Sebum Imbalance";
             concern = "Oil Control";
-            strategy = "Use Niacinamide to regulate oil production without drying.";
+            description = "T-zone reflectivity suggests elevated sebum production, which may lead to future congestion if not regulated.";
+            strategy = "Use Niacinamide to regulate oil without drying.";
+        } else if (lowKey === 'pigmentation') {
+            title = "Uneven Tone";
+            concern = "Hyperpigmentation";
+            description = "Localized melanin clustering detected. While not severe, these spots may darken with UV exposure.";
+            strategy = "Daily Vitamin C & Strict SPF application.";
         } else {
             title = "Optimization Needed";
             concern = niceNames[lowKey] || "Optimization";
+            description = `Your ${concern.toLowerCase()} is slightly below peak condition. Minor adjustments to your routine can correct this trajectory.`;
             strategy = `Add specific actives to improve ${concern.toLowerCase()}.`;
         }
     } else {
@@ -541,10 +565,11 @@ const SkinAnalysisReport: React.FC<SkinAnalysisReportProps> = ({ userProfile, sh
         title = "Clinical Excellence";
         concern = "None";
         strength = "Total Vitality";
+        description = "Your skin biomarkers are exceptional. Barrier function, hydration, and texture are all performing at peak levels.";
         strategy = "Current routine is highly effective. Maintain consistency.";
     }
 
-    return { title, color, grade, concern, strength, strategy };
+    return { title, color, grade, concern, strength, strategy, description };
   };
 
   const verdict = useMemo(() => generateClinicalVerdict(), [metrics]);
@@ -627,8 +652,10 @@ const SkinAnalysisReport: React.FC<SkinAnalysisReportProps> = ({ userProfile, sh
                         </div>
                     </div>
                     
-                    <h2 className="text-3xl font-black tracking-tighter leading-none mb-1">{verdict.title}</h2>
-                    <p className="text-white/80 font-medium text-xs mb-6 max-w-xs">Based on holistic analysis of your hydration, inflammation, and texture markers.</p>
+                    <h2 className="text-3xl font-black tracking-tighter leading-none mb-2">{verdict.title}</h2>
+                    <p className="text-white/90 font-medium text-xs mb-6 max-w-sm leading-relaxed drop-shadow-sm">
+                        {verdict.description}
+                    </p>
 
                     <div className="grid grid-cols-3 gap-2">
                          <div className="bg-black/20 backdrop-blur-md rounded-xl p-3 border border-white/10">
@@ -636,21 +663,21 @@ const SkinAnalysisReport: React.FC<SkinAnalysisReportProps> = ({ userProfile, sh
                                  <AlertCircle size={10} />
                                  <span className="text-[9px] font-bold uppercase tracking-wide">Primary Concern</span>
                              </div>
-                             <span className="text-xs font-bold text-white block leading-tight">{verdict.concern}</span>
+                             <span className="text-xs font-bold text-white block leading-tight truncate">{verdict.concern}</span>
                          </div>
                          <div className="bg-black/20 backdrop-blur-md rounded-xl p-3 border border-white/10">
                              <div className="flex items-center gap-1.5 text-emerald-200 mb-1">
                                  <ShieldCheck size={10} />
                                  <span className="text-[9px] font-bold uppercase tracking-wide">Resilience</span>
                              </div>
-                             <span className="text-xs font-bold text-white block leading-tight">{verdict.strength}</span>
+                             <span className="text-xs font-bold text-white block leading-tight truncate">{verdict.strength}</span>
                          </div>
                          <div className="bg-black/20 backdrop-blur-md rounded-xl p-3 border border-white/10 col-span-1">
                              <div className="flex items-center gap-1.5 text-amber-200 mb-1">
                                  <Target size={10} />
                                  <span className="text-[9px] font-bold uppercase tracking-wide">Action Plan</span>
                              </div>
-                             <span className="text-[10px] font-bold text-white block leading-tight truncate">{verdict.strategy}</span>
+                             <span className="text-[9px] font-bold text-white block leading-tight truncate">{verdict.strategy}</span>
                          </div>
                     </div>
                 </div>
