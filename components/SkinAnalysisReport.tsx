@@ -1,8 +1,7 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { SkinMetrics, Product, UserProfile } from '../types';
 import { auditProduct, getClinicalTreatmentSuggestions } from '../services/geminiService';
-import { RefreshCw, Sparkles, Sun, Moon, Ban, CheckCircle2, AlertTriangle, Target, BrainCircuit, Stethoscope, Plus, Microscope, X, FlaskConical, Search, ArrowRight, Pipette, Droplet, Layers, Fingerprint, Info, AlertOctagon, GitBranch, ArrowUpRight, Syringe, Zap, Activity, MessageCircle, ShieldAlert, TrendingUp, TrendingDown, Minus, ShoppingBag, ScanBarcode, ShieldCheck, ChevronDown, Lock, Crown, ListChecks, HelpCircle } from 'lucide-react';
+import { RefreshCw, Sparkles, Sun, Moon, Ban, CheckCircle2, AlertTriangle, Target, BrainCircuit, Stethoscope, Plus, Microscope, X, FlaskConical, Search, ArrowRight, Pipette, Droplet, Layers, Fingerprint, Info, AlertOctagon, GitBranch, ArrowUpRight, Syringe, Zap, Activity, MessageCircle, ShieldAlert, TrendingUp, TrendingDown, Minus, ShoppingBag, ScanBarcode, ShieldCheck, ChevronDown, Lock, Crown, ListChecks, HelpCircle, ThumbsUp, ThumbsDown, AlertCircle } from 'lucide-react';
 
 // --- SUB COMPONENTS ---
 
@@ -376,94 +375,8 @@ const SkinAnalysisReport: React.FC<SkinAnalysisReportProps> = ({ userProfile, sh
       const scores = [{ name: 'Blemishes', val: blemishScore }, { name: 'Skin Health', val: healthScore }, { name: 'Vitality', val: agingScore }].sort((a,b) => a.val - b.val);
       const lowestGroup = scores[0];
 
-      let summary = "";
-      if (metrics.analysisSummary) {
-          summary = metrics.analysisSummary;
-      } else {
-          if (lowestGroup.val > 80) {
-              summary = "Your skin demonstrates excellent resilience. **Maintenance is your primary goal** to preserve barrier integrity and elasticity.";
-          } else if (lowestGroup.name === 'Blemishes') {
-              summary = "Analysis detects congestion and active blemish markers. **Deep pore cleansing and oil control** should be the primary focus of your routine.";
-          } else if (lowestGroup.name === 'Skin Health') {
-              summary = "Your moisture barrier appears compromised. **Immediate hydration and soothing** are required to reduce sensitivity and restore balance.";
-          } else {
-              summary = "Early structural changes are visible. **Collagen support and sun protection** are critical to prevent deepening of fine lines.";
-          }
-      }
-
-      return { blemishScore, healthScore, agingScore, priorityCategory: lowestGroup.name, priorityScore: lowestGroup.val, summaryText: summary };
+      return { blemishScore, healthScore, agingScore, priorityCategory: lowestGroup.name, priorityScore: lowestGroup.val };
   }, [metrics]);
-
-  const progressVerdict = useMemo(() => {
-      if (!prevMetrics) {
-          return {
-              status: "Baseline Established",
-              trend: 0,
-              verdictTitle: "Analysis Complete",
-              verdictText: "We've mapped your skin's starting point. Add products to your shelf and scan again regularly to track real efficacy.",
-              color: "text-zinc-600 bg-zinc-50 border-zinc-200"
-          };
-      }
-
-      const diff = metrics.overallScore - prevMetrics.overallScore;
-      const trend = Math.round(((metrics.overallScore - prevMetrics.overallScore) / prevMetrics.overallScore) * 100);
-      
-      const changes = [
-          { name: 'Redness', val: metrics.redness - prevMetrics.redness },
-          { name: 'Hydration', val: metrics.hydration - prevMetrics.hydration },
-          { name: 'Acne', val: metrics.acneActive - prevMetrics.acneActive },
-          { name: 'Texture', val: metrics.texture - prevMetrics.texture }
-      ].sort((a, b) => Math.abs(b.val) - Math.abs(a.val));
-      
-      const biggestChange = changes[0];
-
-      const newProducts = shelf.filter(p => p.dateScanned > prevMetrics.timestamp && p.dateScanned < metrics.timestamp);
-      const latestProduct = newProducts.length > 0 ? newProducts[newProducts.length - 1] : null;
-
-      let verdictText = "";
-      let title = "";
-      
-      if (Math.abs(diff) < 5) {
-          let status = "Steady";
-          let color = "text-zinc-500 bg-zinc-50 border-zinc-200";
-
-          if (metrics.overallScore > 80) {
-              title = "Health Maintained";
-              status = "Maintained";
-              color = "text-emerald-700 bg-emerald-50 border-emerald-100";
-          } else if (metrics.overallScore < 60) {
-              title = "Condition Persistent";
-              status = "Persistent";
-              color = "text-amber-700 bg-amber-50 border-amber-100";
-          } else {
-              title = "Consistent State";
-              status = "Consistent";
-          }
-          
-          verdictText = "Your skin metrics are hovering in the same range. No significant reactions or major improvements detected recently.";
-          return { status: status, trend, verdictTitle: title, verdictText, color: color };
-      }
-
-      const improved = diff > 0;
-      title = improved ? "Improving" : "Declining";
-      
-      if (improved) {
-          if (latestProduct && biggestChange.val > 0) {
-               verdictText = `The ${latestProduct.name} appears to be helping. ${biggestChange.name} has improved by +${Math.round(biggestChange.val)} points.`;
-          } else {
-               verdictText = `Routine is effective. ${biggestChange.name} shows the strongest improvement (+${Math.round(biggestChange.val)} points).`;
-          }
-          return { status: "Improving", trend, verdictTitle: title, verdictText, color: "text-emerald-700 bg-emerald-50 border-emerald-100" };
-      } else {
-           if (latestProduct && biggestChange.val < 0) {
-               verdictText = `Monitor ${latestProduct.name}. ${biggestChange.name} has dropped by ${Math.round(biggestChange.val)} points since adding it.`;
-          } else {
-               verdictText = `Regression detected. ${biggestChange.name} has worsened (-${Math.abs(Math.round(biggestChange.val))} points). Check routine for irritants.`;
-          }
-          return { status: "Declining", trend, verdictTitle: title, verdictText, color: "text-rose-700 bg-rose-50 border-rose-100" };
-      }
-
-  }, [metrics, prevMetrics, shelf]);
 
   const prescription = useMemo(() => {
     let rankedConcerns = [
@@ -551,40 +464,90 @@ const SkinAnalysisReport: React.FC<SkinAnalysisReportProps> = ({ userProfile, sh
     return { topConcerns, ingredients: uniqueIngredients, avoid, hasSafetySwaps: uniqueIngredients.some(i => i.isSafetySwap) };
   }, [metrics, complexity, userProfile.preferences]);
 
-  const priorityColor = groupAnalysis.priorityScore > 80 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100';
-  const priorityLabel = groupAnalysis.priorityScore > 80 ? 'Maintenance' : 'Focus';
+  const generateClinicalVerdict = () => {
+    // 1. DETERMINE STATUS & COLORS
+    let title = "Stable & Balanced";
+    let color = "from-teal-500 to-emerald-600";
+    let grade = "A";
+    let concern = "Maintenance";
+    let strength = "General Health";
+    let strategy = "Continue current routine.";
 
-  const isAnonymous = userProfile.isAnonymous;
-  const hasHistory = userProfile.scanHistory && userProfile.scanHistory.length > 1;
+    const lowestMetric = Object.entries(metrics)
+        .filter(([k]) => typeof metrics[k as keyof SkinMetrics] === 'number')
+        .sort((a,b) => (a[1] as number) - (b[1] as number))[0];
+    
+    const highestMetric = Object.entries(metrics)
+        .filter(([k]) => typeof metrics[k as keyof SkinMetrics] === 'number')
+        .sort((a,b) => (b[1] as number) - (a[1] as number))[0];
 
-  let verdictTagText = "";
-  let verdictTagColor = "";
-  let verdictBodyText: React.ReactNode = renderVerdict(groupAnalysis.summaryText);
+    const lowKey = lowestMetric[0];
+    const lowVal = lowestMetric[1] as number;
+    const highKey = highestMetric[0];
 
-  if (isAnonymous) {
-      verdictTagText = "BASELINE SET";
-      verdictTagColor = "bg-zinc-100 text-zinc-600 border-zinc-200";
-      verdictBodyText = (
-          <>
-            {verdictBodyText} <span className="block mt-2 font-medium italic text-teal-600/80">Rescan regularly to build a clinical history and unlock trend analysis.</span>
-          </>
-      );
-  } else if (!hasHistory) {
-       verdictTagText = "BASELINE ESTABLISHED";
-       verdictTagColor = "bg-zinc-100 text-zinc-600 border-zinc-200";
-  } else {
-       const status = progressVerdict.status.toUpperCase();
-       verdictTagText = status;
-       
-       if (status === 'IMPROVING' || status === 'MAINTAINED') {
-           verdictTagColor = "bg-emerald-50 text-emerald-700 border-emerald-100";
-       } else if (status === 'DECLINING' || status === 'PERSISTENT') {
-           verdictTagColor = "bg-rose-50 text-rose-700 border-rose-100";
-       } else {
-           verdictTagText = "STABLE";
-           verdictTagColor = "bg-zinc-50 text-zinc-600 border-zinc-200";
-       }
-  }
+    // MAPPING READABLE NAMES
+    const niceNames: Record<string, string> = {
+        acneActive: "Clear Skin", acneScars: "Even Texture", hydration: "Hydration Barrier",
+        redness: "Skin Calmness", oiliness: "Oil Control", wrinkleFine: "Elasticity",
+        poreSize: "Pore Tightness", texture: "Surface Smoothness", pigmentation: "Even Tone"
+    };
+
+    strength = niceNames[highKey] || "Resilience";
+
+    // LOGIC TREE FOR VERDICT
+    if (lowVal < 50) {
+        grade = "C";
+        color = "from-rose-500 to-red-600";
+        if (lowKey === 'hydration') {
+            title = "Barrier Compromised";
+            concern = "Severe Dehydration";
+            strategy = "Focus exclusively on repair and hydration. Stop all actives.";
+        } else if (lowKey === 'redness') {
+            title = "High Reactivity";
+            concern = "Inflammation";
+            strategy = "Skin is currently hypersensitive. Simplify routine to basics.";
+        } else if (lowKey === 'acneActive') {
+            title = "Active Congestion";
+            concern = "Breakouts";
+            strategy = "Introduce salicylic acid and avoid comedogenic oils.";
+        } else if (lowKey === 'wrinkleFine') {
+            title = "Elasticity Loss";
+            concern = "Premature Aging";
+            strategy = "Consider introducing retinoids and increasing collagen intake.";
+        } else {
+            title = "Attention Required";
+            concern = niceNames[lowKey] || "Unbalanced";
+            strategy = `Target ${concern.toLowerCase()} with focused treatments.`;
+        }
+    } else if (lowVal < 75) {
+        grade = "B";
+        color = "from-amber-400 to-orange-500";
+        if (lowKey === 'hydration') {
+            title = "Moisture Deficit";
+            concern = "Dryness";
+            strategy = "Increase humectants (Hyaluronic Acid) in AM/PM routine.";
+        } else if (lowKey === 'oiliness') {
+            title = "Sebum Imbalance";
+            concern = "Oil Control";
+            strategy = "Use Niacinamide to regulate oil production without drying.";
+        } else {
+            title = "Optimization Needed";
+            concern = niceNames[lowKey] || "Optimization";
+            strategy = `Add specific actives to improve ${concern.toLowerCase()}.`;
+        }
+    } else {
+        grade = "S";
+        color = "from-teal-500 to-emerald-600";
+        title = "Clinical Excellence";
+        concern = "None";
+        strength = "Total Vitality";
+        strategy = "Current routine is highly effective. Maintain consistency.";
+    }
+
+    return { title, color, grade, concern, strength, strategy };
+  };
+
+  const verdict = useMemo(() => generateClinicalVerdict(), [metrics]);
 
   const handleRescan = () => {
       if (userProfile.isAnonymous) {
@@ -649,33 +612,59 @@ const SkinAnalysisReport: React.FC<SkinAnalysisReportProps> = ({ userProfile, sh
             </div>
         </div>
 
-        {/* CLINICAL VERDICT SECTION */}
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-zinc-100 tech-reveal delay-100 flex flex-col sm:flex-row gap-4">
-             <div className="flex-1">
-                 <div className="flex items-center justify-between mb-3">
-                     <div className="flex items-center gap-2">
-                        <Stethoscope size={14} className="text-teal-500" />
-                        <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest">
+        {/* HIGH-END CLINICAL VERDICT SECTION */}
+        <div className="px-1 -mt-6 z-30">
+            {/* 1. Main Verdict Card (Gradient) */}
+            <div className={`rounded-[2rem] p-6 text-white shadow-xl bg-gradient-to-br ${verdict.color} ring-4 ring-white/50 relative overflow-hidden`}>
+                <div className="absolute top-0 right-0 p-6 opacity-20">
+                    <Activity size={80} />
+                </div>
+                
+                <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full border border-white/20 text-[10px] font-bold uppercase tracking-widest">
                             Clinical Verdict
-                        </h3>
-                     </div>
-                     <span className={`text-[9px] font-bold px-2 py-1 rounded border ${verdictTagColor}`}>
-                        {verdictTagText}
-                     </span>
-                 </div>
-                 <p className="text-sm text-zinc-600 font-normal leading-relaxed">
-                    {verdictBodyText}
-                 </p>
-             </div>
-             
-             {onViewProgress && (
+                        </div>
+                    </div>
+                    
+                    <h2 className="text-3xl font-black tracking-tighter leading-none mb-1">{verdict.title}</h2>
+                    <p className="text-white/80 font-medium text-xs mb-6 max-w-xs">Based on holistic analysis of your hydration, inflammation, and texture markers.</p>
+
+                    <div className="grid grid-cols-3 gap-2">
+                         <div className="bg-black/20 backdrop-blur-md rounded-xl p-3 border border-white/10">
+                             <div className="flex items-center gap-1.5 text-rose-200 mb-1">
+                                 <AlertCircle size={10} />
+                                 <span className="text-[9px] font-bold uppercase tracking-wide">Primary Concern</span>
+                             </div>
+                             <span className="text-xs font-bold text-white block leading-tight">{verdict.concern}</span>
+                         </div>
+                         <div className="bg-black/20 backdrop-blur-md rounded-xl p-3 border border-white/10">
+                             <div className="flex items-center gap-1.5 text-emerald-200 mb-1">
+                                 <ShieldCheck size={10} />
+                                 <span className="text-[9px] font-bold uppercase tracking-wide">Resilience</span>
+                             </div>
+                             <span className="text-xs font-bold text-white block leading-tight">{verdict.strength}</span>
+                         </div>
+                         <div className="bg-black/20 backdrop-blur-md rounded-xl p-3 border border-white/10 col-span-1">
+                             <div className="flex items-center gap-1.5 text-amber-200 mb-1">
+                                 <Target size={10} />
+                                 <span className="text-[9px] font-bold uppercase tracking-wide">Action Plan</span>
+                             </div>
+                             <span className="text-[10px] font-bold text-white block leading-tight truncate">{verdict.strategy}</span>
+                         </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* 2. Secondary Actions (Progress) */}
+            {onViewProgress && (
                  <button 
                     onClick={handleViewProgress}
-                    className="shrink-0 flex items-center justify-center gap-2 bg-zinc-50 hover:bg-zinc-100 text-zinc-600 rounded-xl px-5 py-3 text-xs font-bold uppercase tracking-wide border border-zinc-200 transition-colors self-start sm:self-center w-full sm:w-auto"
+                    className="w-full mt-4 flex items-center justify-center gap-2 bg-white hover:bg-zinc-50 text-zinc-600 rounded-2xl px-5 py-3 text-xs font-bold uppercase tracking-wide border border-zinc-200 transition-colors shadow-sm"
                  >
-                    <TrendingUp size={14} /> See My Progress
+                    <TrendingUp size={14} /> View Historical Progress
                  </button>
-             )}
+            )}
         </div>
 
         <div ref={chartRef} className="modern-card rounded-[2.5rem] p-10 flex flex-col items-center relative overflow-hidden animate-in slide-in-from-bottom-8 duration-700 delay-100 chart-container group cursor-crosshair">
