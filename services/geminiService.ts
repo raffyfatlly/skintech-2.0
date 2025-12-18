@@ -5,30 +5,34 @@ import { SkinMetrics, Product, UserProfile } from '../types';
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const PROMPTS = {
-    SKIN_DIAGNOSTIC: (metrics: SkinMetrics, history?: SkinMetrics[]) => `
-        TASK: Clinical Verification of Optical Biomarkers.
+    SKIN_DIAGNOSTIC: (metrics: SkinMetrics) => `
+        ROLE: Skin Health Reporter.
         
-        DETERMINISTIC DATA (Primary Source): ${JSON.stringify(metrics)}.
+        TASK: Analyze the provided skin data: ${JSON.stringify(metrics)}.
         
-        INSTRUCTIONS:
-        1. NO ARBITRARY SMOOTHING: If you see significant visual evidence of inflammation, scars, or texture, keep the scores low. If the skin is clearly glass-like, keep them high.
-        2. CROSS-VERIFICATION: The provided metrics are calculated via pixel-level signal processing (YCbCr decomposition). Verify these against the visual blobs and patterns in the image.
-        3. ACCURACY OVER CONSISTENCY: Your priority is reflecting the TRUTH of this specific image. If it differs from history, explain the change (e.g., "Active breakout detected since last scan").
-        
-        NARRATIVE: 5-6 professional sentences with **bold highlights**. Focus on specific areas (e.g., "nasolabial folds", "malar region").
-        
-        RETURN JSON:
+        STRICT RULES:
+        1. NO FIRST-PERSON: Never use "I", "me", "my", or "mine".
+        2. NO COACHING: Do not give advice or talk about feelings/empathy. No mental health references.
+        3. SIMPLE LANGUAGE: Use words regular people understand. (e.g., use "breakouts" instead of "acne", "moisture" instead of "hydration", "firmness" instead of "sagging").
+        4. CRITICAL FOCUS: Explain the lowest score first. Tell the user *why* it happens (e.g., weather, sun, clogged pores) in simple terms.
+        5. FORMATTING: Use **bold highlights** for the most important findings.
+
+        RETURN JSON FORMAT ONLY:
         {
-            "overallScore": number, "skinAge": number, "acneActive": number, "acneScars": number,
-            "redness": number, "hydration": number, "texture": number, "wrinkleFine": number, "pigmentation": number,
-            "analysisSummary": "text with **highlights**",
-            "observations": { "metricKey": "location and severity detail" }
+            "overallScore": number, 
+            "skinAge": number, 
+            "analysisSummary": "A clear, objective report on skin status. Start with the most critical issue. Explain the cause simply without using 'I' or personal address.",
+            "observations": { 
+                "redness": "e.g., Visible redness found on the cheeks, likely due to sensitivity or sun.",
+                "hydration": "e.g., Low moisture levels detected; skin may feel tight or look dull.",
+                "texture": "e.g., Surface is slightly uneven near the nose area."
+            }
         }
     `,
 
     PRODUCT_AUDIT_CORE: (userMetrics: SkinMetrics) => `
         USER CONTEXT: ${JSON.stringify(userMetrics)}.
-        MANDATORY: Use Google Search to find official INCI from INCIDecoder and Malaysian Price (RM).
+        MANDATORY: Use Google Search for INCI and Malaysian Price (RM).
         RETURN ONLY VALID JSON.
     `
 };
@@ -41,7 +45,6 @@ const parseJSON = (text: string) => {
     } catch (e) { return null; }
 };
 
-// Helper to extract website URLs from groundingChunks as required by the @google/genai guidelines
 const extractGroundingSources = (response: GenerateContentResponse) => {
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
     if (!chunks) return [];
@@ -60,7 +63,7 @@ export const analyzeFaceSkin = async (image: string, localMetrics: SkinMetrics, 
         contents: {
             parts: [
                 { inlineData: { mimeType: 'image/jpeg', data: image.split(',')[1] } },
-                { text: PROMPTS.SKIN_DIAGNOSTIC(localMetrics, history) }
+                { text: PROMPTS.SKIN_DIAGNOSTIC(localMetrics) }
             ]
         },
         config: { responseMimeType: 'application/json' }
@@ -81,12 +84,10 @@ export const analyzeProductImage = async (base64: string, userMetrics: SkinMetri
         config: { tools: [{ googleSearch: {} }] }
     });
     const data = parseJSON(response.text || "{}");
-    // Extract grounding sources from groundingMetadata as per guidelines
     const sourceUrls = extractGroundingSources(response);
     return { ...data, sourceUrls, id: Date.now().toString(), dateScanned: Date.now() };
 };
 
-// Fixed error in file components/ProductSearch.tsx on line 84 by updating signature to accept brand and score arguments.
 export const analyzeProductFromSearch = async (name: string, metrics: SkinMetrics, score?: number, brand?: string): Promise<Product> => {
     const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -94,7 +95,6 @@ export const analyzeProductFromSearch = async (name: string, metrics: SkinMetric
         config: { tools: [{ googleSearch: {} }] }
     });
     const data = parseJSON(response.text || "{}");
-    // Extract grounding sources from groundingMetadata as per guidelines
     const sourceUrls = extractGroundingSources(response);
     return { ...data, sourceUrls, id: Date.now().toString(), dateScanned: Date.now() };
 };
@@ -120,7 +120,7 @@ export const generateRoutineRecommendations = async (user: UserProfile) => {
 export const createDermatologistSession = (user: UserProfile, shelf: Product[]) => {
     return ai.chats.create({
         model: 'gemini-3-flash-preview',
-        config: { systemInstruction: `Expert Malaysian Skin Coach. User: ${JSON.stringify(user.biometrics)}` }
+        config: { systemInstruction: `Analytical Skin Health Analyzer. Provide objective, technical responses in plain English without first-person pronouns. User data: ${JSON.stringify(user.biometrics)}` }
     });
 };
 

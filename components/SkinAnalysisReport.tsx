@@ -1,7 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { SkinMetrics, Product, UserProfile } from '../types';
-// Added missing ArrowRight to lucide-react imports
 import { RefreshCw, Sparkles, Stethoscope, X, Info, TrendingUp, ShieldCheck, Activity, CheckCircle2, AlertCircle, Clock, ArrowRight } from 'lucide-react';
 
 // --- SUB COMPONENTS ---
@@ -142,23 +141,28 @@ const MetricModal: React.FC<MetricModalProps> = ({ metric, score, age, observati
     };
     const avg = getAverage();
     const performance = score >= avg ? 'Above Average' : 'Needs Care';
+    
     const getObservation = () => {
         if (observation) return observation;
         const ROIMap: Record<string, string> = { 'acneActive': 'Cheeks and Chin', 'acneScars': 'Cheeks and Jawline', 'poreSize': 'Nose area', 'blackheads': 'Nose and Chin', 'wrinkleFine': 'Forehead and eyes', 'wrinkleDeep': 'Forehead', 'sagging': 'Jawline', 'pigmentation': 'Cheeks and forehead', 'redness': 'Cheeks and nose', 'texture': 'Skin surface', 'hydration': 'Overall face', 'oiliness': 'Forehead and Nose', 'darkCircles': 'Under-eyes' };
         const location = ROIMap[metric] || 'Face';
-        const severity = score < 60 ? 'Significant' : score < 80 ? 'Some' : 'Minimal';
-        if (score > 85) return `Your skin looks very healthy and clear on your ${location}.`;
-        return `${severity} changes seen on your ${location}.`;
+        if (score > 85) return `Metric is optimal for the ${location}.`;
+        if (score < 65) return `Score indicates a need for attention on the ${location}. Physical factors like dryness or oil can affect this.`;
+        return `Metric is within the standard range for the ${location}.`;
     }
+
     const getDisplayTerm = (m: string) => {
-        if (m === 'acneActive') return 'Acne';
-        if (m === 'wrinkleFine') return 'Lines';
+        if (m === 'acneActive') return 'Breakouts';
+        if (m === 'wrinkleFine') return 'Fine Lines';
         if (m === 'wrinkleDeep') return 'Wrinkles';
         if (m === 'poreSize') return 'Pores';
         if (m === 'acneScars') return 'Scars';
         if (m === 'pigmentation') return 'Spots';
+        if (m === 'hydration') return 'Moisture';
+        if (m === 'sagging') return 'Firmness';
         return m.charAt(0).toUpperCase() + m.slice(1);
     }
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-zinc-900/40 backdrop-blur-md animate-in fade-in duration-300">
              <div className="w-full max-w-sm bg-white rounded-[2.5rem] p-8 relative animate-in zoom-in-95 shadow-2xl">
@@ -169,14 +173,14 @@ const MetricModal: React.FC<MetricModalProps> = ({ metric, score, age, observati
                      <span className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold tracking-wide ${score > avg ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{performance}</span>
                  </div>
                  <div className="mb-10 tech-reveal delay-100">
-                     <div className="flex justify-between text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3"><span>Average ({avg})</span><span>You ({Math.round(score)})</span></div>
+                     <div className="flex justify-between text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3"><span>Global Avg</span><span>Your Score</span></div>
                      <div className="h-3 bg-zinc-100 rounded-full overflow-hidden relative">
                          <div className="absolute top-0 bottom-0 w-0.5 bg-zinc-400 z-10" style={{ left: `${avg}%` }} />
                          <div className={`h-full rounded-full transition-all duration-1000 draw-stroke ${score > 80 ? 'bg-emerald-400' : score > 60 ? 'bg-amber-400' : 'bg-rose-400'}`} style={{ width: `${score}%` }} />
                      </div>
                  </div>
                  <div className="bg-teal-50/50 rounded-2xl p-6 border border-teal-100/50 tech-reveal delay-200">
-                     <h4 className="text-xs font-bold text-teal-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Info size={14} /> Analysis</h4>
+                     <h4 className="text-xs font-bold text-teal-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Info size={14} /> Analysis Detail</h4>
                      <p className="text-sm text-zinc-600 leading-relaxed font-medium">{getObservation()}</p>
                  </div>
              </div>
@@ -214,15 +218,22 @@ const SkinAnalysisReport: React.FC<SkinAnalysisReportProps> = ({ userProfile, sh
       const blemishScore = (metrics.acneActive + metrics.acneScars + metrics.poreSize + metrics.pigmentation) / 4;
       const healthScore = (metrics.hydration + metrics.oiliness + metrics.redness + metrics.texture) / 4;
       const agingScore = (metrics.wrinkleFine + metrics.wrinkleDeep + metrics.sagging + metrics.darkCircles) / 4;
-      const categories = [{ name: 'Blemishes', val: blemishScore }, { name: 'Health', val: healthScore }, { name: 'Aging', val: agingScore }];
-      const lowest = [...categories].sort((a,b) => a.val - b.val)[0];
-      return { blemishScore, healthScore, agingScore, priorityCategory: lowest.name };
+      
+      const allMetrics = [
+          { name: 'Breakouts', val: metrics.acneActive },
+          { name: 'Moisture', val: metrics.hydration },
+          { name: 'Redness', val: metrics.redness },
+          { name: 'Texture', val: metrics.texture },
+          { name: 'Firmness', val: metrics.sagging }
+      ].sort((a,b) => a.val - b.val);
+
+      return { blemishScore, healthScore, agingScore, priorityCategory: allMetrics[0].name, priorityVal: Math.round(allMetrics[0].val) };
   }, [metrics]);
 
   const verdict = useMemo(() => {
-    let description = metrics.analysisSummary || "Visual analysis reveals a healthy skin barrier with minor imperfections. The surface appears significantly clear of inflammatory markers, with micro-texture primarily centered around the nasal region.";
+    let description = metrics.analysisSummary || `Primary metric variance identified in **${groupAnalysis.priorityCategory}** (Score: ${groupAnalysis.priorityVal}). This score is often affected by moisture loss or environmental factors. Focused correction is recommended for this area.`;
     return { description };
-  }, [metrics]);
+  }, [metrics, groupAnalysis]);
 
   return (
     <div className="space-y-12 pb-48 font-sans">
@@ -233,14 +244,14 @@ const SkinAnalysisReport: React.FC<SkinAnalysisReportProps> = ({ userProfile, sh
                  <button onClick={() => { if (userProfile.isAnonymous) onLoginRequired('RESCAN_FACE'); else onRescan(); }} className="absolute top-6 right-6 z-20 bg-black/40 backdrop-blur-md text-white px-5 py-2.5 rounded-full flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest hover:bg-black/60 transition-colors border border-white/10 shadow-lg"><RefreshCw size={12} /> Rescan</button>
                  <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 text-white z-10">
                      <div className="flex justify-between items-start border-t border-white/10 pt-4 tech-reveal delay-100">
-                        <HeroTooltip title="Health Score" content="Your overall skin rating calculated by merging deterministic vision data and AI sanity checks.">
-                            <div><span className="text-[9px] font-bold text-teal-400 uppercase tracking-widest block mb-0.5">Score</span><span className="text-xl font-black text-white">{metrics.overallScore}</span></div>
+                        <HeroTooltip title="Health Score" content="A combined rating of skin quality based on computer analysis of texture, moisture, and clarity.">
+                            <div><span className="text-[9px] font-bold text-teal-400 uppercase tracking-widest block mb-0.5">Overall</span><span className="text-xl font-black text-white">{metrics.overallScore}</span></div>
                         </HeroTooltip>
-                        <HeroTooltip title="Consistency Guard" content="Stability Engine Active: Discarded sensor noise and anchored to your baseline for high reliability.">
-                            <div className="text-center"><span className="text-[9px] font-bold text-teal-400 uppercase tracking-widest block mb-0.5">Confidence</span><span className="text-xl font-black text-white flex items-center justify-center gap-1">High <ShieldCheck size={14} className="text-teal-400" /></span></div>
+                        <HeroTooltip title="Status" content="Daily data capture successful. Analysis finalized.">
+                            <div className="text-center"><span className="text-[9px] font-bold text-teal-400 uppercase tracking-widest block mb-0.5">Status</span><span className="text-xl font-black text-white flex items-center justify-center gap-1">Finalized <ShieldCheck size={14} className="text-teal-400" /></span></div>
                         </HeroTooltip>
-                        <HeroTooltip title="Primary Target" content="The biomarker category currently requiring the most targeted intervention." align="right">
-                            <div className="text-right sm:text-left"><span className="text-[9px] font-bold text-teal-400 uppercase tracking-widest block mb-0.5">Priority</span><span className="text-xl font-black text-white">{groupAnalysis.priorityCategory}</span></div>
+                        <HeroTooltip title="Critical Focus" content={`The ${groupAnalysis.priorityCategory} score represents the area requiring the most immediate attention.`} align="right">
+                            <div className="text-right sm:text-left"><span className="text-[9px] font-bold text-rose-400 uppercase tracking-widest block mb-0.5">Critical Area</span><span className="text-xl font-black text-white">{groupAnalysis.priorityCategory}</span></div>
                         </HeroTooltip>
                      </div>
                  </div>
@@ -250,12 +261,16 @@ const SkinAnalysisReport: React.FC<SkinAnalysisReportProps> = ({ userProfile, sh
         <div className="px-5 -mt-8 z-30 relative">
             <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-zinc-100/50">
                 <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-2 text-teal-600"><Stethoscope size={16} /><h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-400">AI CLINICAL VERDICT</h3></div>
-                    <div className="bg-emerald-50 px-3 py-1 rounded-md flex items-center gap-1.5"><Activity size={10} className="text-emerald-600" /><span className="text-[9px] font-bold uppercase text-emerald-600 tracking-wider">STABLE BASELINE</span></div>
+                    <div className="flex items-center gap-2 text-teal-600"><Activity size={16} /><h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-400">SKIN CONDITION REPORT</h3></div>
+                    <div className="bg-emerald-50 px-3 py-1 rounded-md flex items-center gap-1.5"><ShieldCheck size={10} className="text-emerald-600" /><span className="text-[9px] font-bold uppercase text-emerald-600 tracking-wider">RESOLVED</span></div>
                 </div>
-                <div className="border-l-2 border-teal-500 pl-4"><p className="text-[14px] text-zinc-600 font-light leading-[1.6] tracking-tight">{renderVerdict(verdict.description)}</p></div>
+                <div className="border-l-2 border-teal-500 pl-4">
+                    <p className="text-[14px] text-zinc-600 font-light leading-[1.6] tracking-tight">
+                        {renderVerdict(verdict.description)}
+                    </p>
+                </div>
             </div>
-            {onViewProgress && <button onClick={() => onViewProgress()} className="w-full mt-4 flex items-center justify-center gap-2 bg-white hover:bg-zinc-50 text-zinc-600 rounded-2xl px-5 py-3.5 text-xs font-bold uppercase tracking-wide border border-zinc-200 transition-colors shadow-sm"><TrendingUp size={14} /> View History & Progress</button>}
+            {onViewProgress && <button onClick={() => onViewProgress()} className="w-full mt-4 flex items-center justify-center gap-2 bg-white hover:bg-zinc-50 text-zinc-600 rounded-2xl px-5 py-3.5 text-xs font-bold uppercase tracking-wide border border-zinc-200 transition-colors shadow-sm"><TrendingUp size={14} /> Skin History & Trends</button>}
         </div>
 
         <div ref={chartRef} className="modern-card rounded-[2.5rem] p-10 flex flex-col items-center relative overflow-hidden animate-in slide-in-from-bottom-8 duration-700 delay-100 chart-container group cursor-crosshair">
@@ -269,29 +284,29 @@ const SkinAnalysisReport: React.FC<SkinAnalysisReportProps> = ({ userProfile, sh
                          const polyPoints = pts.map(p => `${p.x},${p.y}`).join(' ');
                          return (<g className={isChartVisible ? "opacity-100 transition-opacity duration-1000" : "opacity-0"}><polygon points={polyPoints} fill="rgba(13, 148, 136, 0.15)" stroke="#0F766E" strokeWidth="2" strokeLinejoin="round" className="draw-stroke" />{pts.map((p, i) => (<circle key={i} cx={p.x} cy={p.y} r="2" fill="#0D9488" className="animate-pulse" />))}</g>)
                      })()}
-                     <text x="60" y="22" textAnchor="middle" fontSize="3.5" fontWeight="bold" fill="#A1A1AA">ACNE</text><text x="94" y="42" textAnchor="middle" fontSize="3.5" fontWeight="bold" fill="#A1A1AA">SPOTS</text><text x="94" y="78" textAnchor="middle" fontSize="3.5" fontWeight="bold" fill="#A1A1AA">SOFT</text><text x="60" y="98" textAnchor="middle" fontSize="3.5" fontWeight="bold" fill="#A1A1AA">OIL</text><text x="26" y="78" textAnchor="middle" fontSize="3.5" fontWeight="bold" fill="#A1A1AA">WATER</text><text x="26" y="42" textAnchor="middle" fontSize="3.5" fontWeight="bold" fill="#A1A1AA">LINES</text>
+                     <text x="60" y="22" textAnchor="middle" fontSize="3.5" fontWeight="bold" fill="#A1A1AA">BREAKOUTS</text><text x="94" y="42" textAnchor="middle" fontSize="3.5" fontWeight="bold" fill="#A1A1AA">SPOTS</text><text x="94" y="78" textAnchor="middle" fontSize="3.5" fontWeight="bold" fill="#A1A1AA">SOFTNESS</text><text x="60" y="98" textAnchor="middle" fontSize="3.5" fontWeight="bold" fill="#A1A1AA">OIL</text><text x="26" y="78" textAnchor="middle" fontSize="3.5" fontWeight="bold" fill="#A1A1AA">MOISTURE</text><text x="26" y="42" textAnchor="middle" fontSize="3.5" fontWeight="bold" fill="#A1A1AA">LINES</text>
                  </svg>
              </div>
              <div className="mt-8 flex items-center gap-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest"><div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-teal-500"></div> DETERMINISTIC</div><div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-teal-100"></div> AI VALIDATED</div></div>
         </div>
 
         <div className="space-y-6 px-1">
-             <GroupSection title="Blemishes" score={groupAnalysis.blemishScore} delayClass="delay-200">
-                 <MetricRing label="Acne" value={metrics.acneActive} metricKey="acneActive" onSelect={setSelectedMetric} />
+             <GroupSection title="Clarity" score={groupAnalysis.blemishScore} delayClass="delay-200">
+                 <MetricRing label="Breakouts" value={metrics.acneActive} metricKey="acneActive" onSelect={setSelectedMetric} />
                  <MetricRing label="Scars" value={metrics.acneScars} metricKey="acneScars" onSelect={setSelectedMetric} />
                  <MetricRing label="Pores" value={metrics.poreSize} metricKey="poreSize" onSelect={setSelectedMetric} />
                  <MetricRing label="Spots" value={metrics.pigmentation} metricKey="pigmentation" onSelect={setSelectedMetric} />
              </GroupSection>
-             <GroupSection title="Health" score={groupAnalysis.healthScore} delayClass="delay-300">
-                 <MetricRing label="Water" value={metrics.hydration} metricKey="hydration" onSelect={setSelectedMetric} />
+             <GroupSection title="Surface" score={groupAnalysis.healthScore} delayClass="delay-300">
+                 <MetricRing label="Moisture" value={metrics.hydration} metricKey="hydration" onSelect={setSelectedMetric} />
                  <MetricRing label="Oil" value={metrics.oiliness} metricKey="oiliness" onSelect={setSelectedMetric} />
-                 <MetricRing label="Calm" value={metrics.redness} metricKey="redness" onSelect={setSelectedMetric} />
-                 <MetricRing label="Soft" value={metrics.texture} metricKey="texture" onSelect={setSelectedMetric} />
+                 <MetricRing label="Redness" value={metrics.redness} metricKey="redness" onSelect={setSelectedMetric} />
+                 <MetricRing label="Softness" value={metrics.texture} metricKey="texture" onSelect={setSelectedMetric} />
              </GroupSection>
              <GroupSection title="Aging" score={groupAnalysis.agingScore} delayClass="delay-500">
                  <MetricRing label="Lines" value={metrics.wrinkleFine} metricKey="wrinkleFine" onSelect={setSelectedMetric} />
                  <MetricRing label="Wrinkles" value={metrics.wrinkleDeep} metricKey="wrinkleDeep" onSelect={setSelectedMetric} />
-                 <MetricRing label="Firm" value={metrics.sagging} metricKey="sagging" onSelect={setSelectedMetric} />
+                 <MetricRing label="Firmness" value={metrics.sagging} metricKey="sagging" onSelect={setSelectedMetric} />
                  <MetricRing label="Eyes" value={metrics.darkCircles} metricKey="darkCircles" onSelect={setSelectedMetric} />
              </GroupSection>
         </div>
@@ -299,9 +314,9 @@ const SkinAnalysisReport: React.FC<SkinAnalysisReportProps> = ({ userProfile, sh
         <div className="rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden animate-in slide-in-from-bottom-8 duration-700 delay-500" style={{ backgroundColor: 'rgb(163, 206, 207)' }}>
              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none mix-blend-overlay"></div>
              {!isPremiumUnlocked ? (
-                 <div className="text-center relative z-10 py-4"><div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center mx-auto mb-6 border border-white/30"><ShieldCheck className="text-white" size={32} /></div><h2 className="text-3xl font-black text-white mb-2 tracking-tight">Expert Verification</h2><p className="text-white/90 font-medium text-sm mb-8 max-w-xs mx-auto leading-relaxed">Unlock deep analysis and your personalized 3-tier routine plan. RM 9.90 one-time.</p><button onClick={onUnlockPremium} className="bg-white text-teal-900 px-8 py-4 rounded-full font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2 mx-auto"><Sparkles size={14} className="text-teal-600" /> Upgrade Now</button></div>
+                 <div className="text-center relative z-10 py-4"><div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center mx-auto mb-6 border border-white/30"><ShieldCheck className="text-white" size={32} /></div><h2 className="text-3xl font-black text-white mb-2 tracking-tight">Full Report</h2><p className="text-white/90 font-medium text-sm mb-8 max-w-xs mx-auto leading-relaxed">Unlock detailed analysis and technical recommendations based on today's findings.</p><button onClick={onUnlockPremium} className="bg-white text-teal-900 px-8 py-4 rounded-full font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2 mx-auto"><Sparkles size={14} className="text-teal-600" /> View Detailed Analysis</button></div>
              ) : (
-                 <div className="relative z-10 animate-in fade-in duration-500"><div className="flex justify-between items-start mb-8"><div><h3 className="text-[10px] font-bold text-white/80 uppercase tracking-widest mb-1 flex items-center gap-2"><Sparkles size={12} /> Premium Ready</h3><h2 className="text-3xl font-black text-white tracking-tight">Routine Architect</h2></div></div><button onClick={onOpenRoutineBuilder} className="w-full group relative overflow-hidden rounded-[2rem] p-6 text-left transition-all hover:shadow-2xl bg-white/10 border border-white/30 backdrop-blur-md"><div className="flex items-center justify-between"><div><h3 className="text-xl font-black text-white mb-1">Build My Routine</h3><p className="text-white/90 text-xs font-bold">3-Tier Plan: Save • Value • Premium</p></div><div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg group-hover:translate-x-1 transition-transform"><ArrowRight size={18} className="text-teal-600" /></div></div></button></div>
+                 <div className="relative z-10 animate-in fade-in duration-500"><div className="flex justify-between items-start mb-8"><div><h3 className="text-[10px] font-bold text-white/80 uppercase tracking-widest mb-1 flex items-center gap-2"><Sparkles size={12} /> Pro Access</h3><h2 className="text-3xl font-black text-white tracking-tight">Routine Architect</h2></div></div><button onClick={onOpenRoutineBuilder} className="w-full group relative overflow-hidden rounded-[2rem] p-6 text-left transition-all hover:shadow-2xl bg-white/10 border border-white/30 backdrop-blur-md"><div className="flex items-center justify-between"><div><h3 className="text-xl font-black text-white mb-1">Generate Routine</h3><p className="text-white/90 text-xs font-bold">Standard • Value • Premium Plans</p></div><div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg group-hover:translate-x-1 transition-transform"><ArrowRight size={18} className="text-teal-600" /></div></div></button></div>
              )}
         </div>
 
