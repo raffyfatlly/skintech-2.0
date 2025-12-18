@@ -2,7 +2,8 @@
 import React, { useState, useMemo } from 'react';
 import { Product, UserProfile, SkinMetrics } from '../types';
 import { Plus, Droplet, Sun, Zap, Sparkles, AlertTriangle, Layers, AlertOctagon, Target, ShieldCheck, X, FlaskConical, Clock, Ban, ArrowRightLeft, CheckCircle2, Microscope, Dna, Palette, Brush, SprayCan, Stamp, DollarSign, TrendingUp, TrendingDown, Wallet, ArrowUpRight, Edit2, Save, Info, ArrowUpCircle, Check, Globe, ExternalLink } from 'lucide-react';
-import { auditProduct, analyzeShelfHealth, analyzeProductContext, getBuyingDecision } from '../services/geminiService';
+// Fix: Removed analyzeProductContext which does not exist in geminiService. Also removed unused auditProduct and getBuyingDecision.
+import { analyzeShelfHealth } from '../services/geminiService';
 
 interface SmartShelfProps {
   products: Product[];

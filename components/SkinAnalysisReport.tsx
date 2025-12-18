@@ -1,6 +1,7 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { SkinMetrics, Product, UserProfile } from '../types';
-import { auditProduct, getClinicalTreatmentSuggestions } from '../services/geminiService';
+// Fix: Removed non-existent getClinicalTreatmentSuggestions and unused auditProduct to resolve compilation errors.
 import { RefreshCw, Sparkles, Sun, Moon, Ban, CheckCircle2, AlertTriangle, Target, BrainCircuit, Stethoscope, Plus, Microscope, X, FlaskConical, Search, ArrowRight, Pipette, Droplet, Layers, Fingerprint, Info, AlertOctagon, GitBranch, ArrowUpRight, Syringe, Zap, Activity, MessageCircle, ShieldAlert, TrendingUp, TrendingDown, Minus, ShoppingBag, ScanBarcode, ShieldCheck, ChevronDown, Lock, Crown, ListChecks, HelpCircle, ThumbsUp, ThumbsDown, AlertCircle } from 'lucide-react';
 
 // --- SUB COMPONENTS ---
