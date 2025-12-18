@@ -658,10 +658,10 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ user, shelf = [], onComplet
                   {auth && auth.currentUser && (
                       <button 
                         onClick={handleSignOut}
-                        className="p-2 bg-white/20 rounded-full text-white hover:bg-white/30 transition-colors shadow-sm border border-white/20"
-                        title="Sign Out"
+                        className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 rounded-full text-white transition-all shadow-sm group"
                       >
-                          <LogOut size={18} />
+                          <span className="text-[10px] font-bold uppercase tracking-widest">Sign Out</span>
+                          <LogOut size={12} className="opacity-80 group-hover:translate-x-0.5 transition-transform" />
                       </button>
                   )}
               </div>
