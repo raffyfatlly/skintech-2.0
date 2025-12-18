@@ -77,22 +77,22 @@ export const analyzeFaceSkin = async (image: string, localMetrics: SkinMetrics, 
         TASK: Act as an elite Clinical Skin Diagnostic AI. Provide a sharp, holistic, and intelligently deep analysis.
         
         HOLISTIC CONTEXT AWARENESS:
-        1. SURROUNDINGS: Analyze lighting (harsh, warm, low), makeup presence (concealer, foundation), and photo clarity. 
-        2. BEHAVIORAL LOGIC: If lighting is yellow, adjust redness interpretation. If makeup is detected, acknowledge it masks certain metrics but still provide a sharp prediction of the underlying state.
-        3. INTELLIGENT DEPTH: Explain relationships (e.g., "Surface oiliness suggests a compensatory response to underlying barrier dehydration").
+        1. SURROUNDINGS: Analyze lighting (is it too harsh, yellow, or dim?), makeup presence (is the individual wearing foundation or concealer?), and photo clarity. 
+        2. BEHAVIORAL LOGIC: If lighting is suboptimal, mention how it might affect the reading. If makeup is detected, mention it masks underlying issues but provide your best expert prediction of the true skin state.
+        3. INTELLIGENT DEPTH: Explain the 'Why'. For example, if you see high oil and low water, explain it as a compensatory barrier response.
         
         SHARP SCORING RECALIBRATION:
-        The provided computer-vision baselines are just a HINT: ${JSON.stringify(localMetrics)}. 
-        RECALIBRATE them based on your superior visual intelligence. 
-        DIRECTION: For ALL scores, HIGHER is BETTER (100 = Perfect/No issue). 
-        - ACNE SCARS: Presence of scars MUST result in a LOW score. (0 = Significant scarring, 100 = No scars).
-        - ACNE ACTIVE: Presence of active spots MUST result in a LOW score.
-        Be honest and accurate. If the photo looks clearer than the baseline, raise the score. If it looks worse, lower it.
+        The provided computer-vision baselines are just a STARTING POINT: ${JSON.stringify(localMetrics)}. 
+        YOUR MISSION: Use your visual intelligence to override these scores. 
+        LOGIC: HIGHER = HEALTHIER (100 is Perfect). 
+        - **ACNE SCARS**: Presence of any scars MUST make the score LOW. 100 means zero scars.
+        - **ACNE ACTIVE**: Presence of active breakouts MUST make the score LOW. 100 means zero acne.
+        - **OVERALL SCORE**: Recalibrate this to reflect the visual reality of the skin's health.
         
         NARRATIVE REQUIREMENTS:
-        - LANGUAGE: Use easy, simple layman terms like "Acne", "Scars", "Spots", "Pores", "Water/Oil balance".
-        - HIGHLIGHTING: Wrap critical terms or key findings in double asterisks (e.g., "**visible scars on the cheek**").
-        - TONE: Clinical yet accessible. Start with "Visual analysis reveals..." or "The individual displays...".
+        - LANGUAGE: Use simple layman terms: "Acne", "Scars", "Spots", "Pores", "Lines", "Water balance".
+        - HIGHLIGHTING: Wrap critical clinical terms, locations, or findings in double asterisks (e.g., "**active acne on the cheeks**").
+        - TONE: Professional and clinical. Start with "Visual analysis reveals..." or "The skin displays...".
         
         OUTPUT FORMAT (STRICT JSON):
         {
@@ -107,10 +107,9 @@ export const analyzeFaceSkin = async (image: string, localMetrics: SkinMetrics, 
             "pigmentation": number,
             "analysisSummary": "Write 5-6 sentences of deep, contextual analysis. Highlight critical terms with **.",
             "observations": {
-                "acneActive": "Sharp contextual detail",
-                "acneScars": "Sharp contextual detail",
-                "pigmentation": "Sharp detail on spots",
-                "redness": "Lighting-aware detail"
+                "acneActive": "Context-aware detail",
+                "acneScars": "Context-aware detail",
+                "pigmentation": "Context-aware detail"
             }
         }
         `;
@@ -133,8 +132,7 @@ export const analyzeFaceSkin = async (image: string, localMetrics: SkinMetrics, 
 
 export const analyzeProductFromSearch = async (productName: string, userMetrics: SkinMetrics, consistencyScore?: number, knownBrand?: string): Promise<Product> => {
     return runWithRetry<Product>(async (ai) => {
-        const prompt = `Analyze "${productName}" by "${knownBrand || "Unknown"}". User Skin: ${JSON.stringify(userMetrics)}. JSON only.`;
-
+        const prompt = `Analyze "${productName}" for User Skin: ${JSON.stringify(userMetrics)}. JSON only.`;
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
             contents: prompt,
@@ -143,14 +141,9 @@ export const analyzeProductFromSearch = async (productName: string, userMetrics:
                 responseMimeType: 'application/json' 
             }
         });
-
         const data = parseJSONFromText(response.text || "{}");
         const grounding = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-        const sourceUrls = grounding?.map((c: any) => ({ 
-            title: c.web?.title || "Product Source", 
-            uri: c.web?.uri 
-        })).filter((s: any) => s.uri) || [];
-
+        const sourceUrls = grounding?.map((c: any) => ({ title: c.web?.title || "Source", uri: c.web?.uri })).filter((s: any) => s.uri) || [];
         return {
             id: Date.now().toString(),
             name: data.name || productName,
@@ -174,8 +167,7 @@ export const analyzeProductFromSearch = async (productName: string, userMetrics:
 
 export const analyzeProductImage = async (base64: string, userMetrics: SkinMetrics): Promise<Product> => {
     return runWithRetry<Product>(async (ai) => {
-        const prompt = `Identify and analyze product. User: ${JSON.stringify(userMetrics)}. JSON only.`;
-
+        const prompt = `Identify product and analyze for user: ${JSON.stringify(userMetrics)}. JSON only.`;
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
             contents: {
@@ -190,18 +182,10 @@ export const analyzeProductImage = async (base64: string, userMetrics: SkinMetri
                 temperature: 0.1 
             }
         });
-
         const data = parseJSONFromText(response.text || "{}");
-        if (!data || data.name === "Identification Failed") {
-            throw new Error("Label not recognized.");
-        }
-
+        if (!data || data.name === "Identification Failed") throw new Error("Label not recognized.");
         const grounding = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-        const sourceUrls = grounding?.map((c: any) => ({ 
-            title: c.web?.title || "Verification Link", 
-            uri: c.web?.uri 
-        })).filter((s: any) => s.uri) || [];
-
+        const sourceUrls = grounding?.map((c: any) => ({ title: c.web?.title || "Verification Link", uri: c.web?.uri })).filter((s: any) => s.uri) || [];
         return {
             id: Date.now().toString(),
             name: data.name,
@@ -224,10 +208,7 @@ export const analyzeProductImage = async (base64: string, userMetrics: SkinMetri
 };
 
 export const auditProduct = (product: Product, user: UserProfile) => {
-    const warnings = product.risks.map(r => ({ 
-        severity: r.riskLevel === 'HIGH' ? 'CRITICAL' : 'CAUTION', 
-        reason: r.reason 
-    }));
+    const warnings = product.risks.map(r => ({ severity: r.riskLevel === 'HIGH' ? 'CRITICAL' : 'CAUTION', reason: r.reason }));
     let adjustedScore = product.suitabilityScore;
     if (user.biometrics.redness < 50 && warnings.length > 0) adjustedScore -= 10;
     return {
@@ -243,24 +224,12 @@ export const analyzeShelfHealth = (products: Product[], user: UserProfile) => {
     if (!types.has('CLEANSER')) missing.push('Cleanser');
     if (!types.has('SPF')) missing.push('SPF');
     if (!types.has('MOISTURIZER')) missing.push('Moisturizer');
-
     const avgScore = products.length > 0 ? products.reduce((acc, p) => acc + p.suitabilityScore, 0) / products.length : 0;
     let grade = 'C';
     if (avgScore > 85 && missing.length === 0) grade = 'S';
     else if (avgScore > 75) grade = 'A';
     else if (avgScore > 60) grade = 'B';
-
-    return {
-        analysis: {
-            grade,
-            conflicts: [],
-            riskyProducts: [],
-            missing,
-            redundancies: [],
-            upgrades: [],
-            balance: { exfoliation: 50, hydration: 80, protection: 90, treatment: 70 }
-        }
-    };
+    return { analysis: { grade, conflicts: [], riskyProducts: [], missing, redundancies: [], upgrades: [], balance: { exfoliation: 50, hydration: 80, protection: 90, treatment: 70 } } };
 };
 
 export const analyzeProductContext = (product: Product, shelf: Product[]) => {

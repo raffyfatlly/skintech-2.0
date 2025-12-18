@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { SkinMetrics, Product, UserProfile } from '../types';
 import { auditProduct, getClinicalTreatmentSuggestions } from '../services/geminiService';
@@ -11,7 +10,7 @@ const renderVerdict = (text: string) => {
   const parts = text.split(/(\*\*.*?\*\*)/g);
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i} className="font-bold text-teal-900">{part.slice(2, -2)}</strong>;
+      return <strong key={i} className="font-bold text-teal-800">{part.slice(2, -2)}</strong>;
     }
     return <span key={i}>{part}</span>;
   });
@@ -72,6 +71,7 @@ const MetricRing: React.FC<MetricRingProps> = ({ label, value, metricKey, onSele
       const observer = new IntersectionObserver(
           ([entry]) => {
               if (entry.isIntersecting) {
+                  // Fixed: Removed undefined setIsChartVisible call which was incorrectly included here
                   setIsVisible(true);
                   observer.disconnect(); 
               }
@@ -317,7 +317,8 @@ const SkinAnalysisReport: React.FC<SkinAnalysisReportProps> = ({ userProfile, sh
   }, [metrics]);
 
   const groupAnalysis = useMemo(() => {
-      // Precision groups for the 3 visual categories
+      // Priority scoring logic: Blemishes, Health, Aging
+      // Each category is an average of 4 metrics to match UI sections
       const blemishScore = (metrics.acneActive + metrics.acneScars + metrics.poreSize + metrics.pigmentation) / 4;
       const healthScore = (metrics.hydration + metrics.oiliness + metrics.redness + metrics.texture) / 4;
       const agingScore = (metrics.wrinkleFine + metrics.wrinkleDeep + metrics.sagging + metrics.darkCircles) / 4;
@@ -328,6 +329,7 @@ const SkinAnalysisReport: React.FC<SkinAnalysisReportProps> = ({ userProfile, sh
           { name: 'Aging', val: agingScore }
       ];
       
+      // Highest priority is the area with the lowest score
       const sorted = [...categories].sort((a,b) => a.val - b.val);
       const lowest = sorted[0];
       
@@ -411,7 +413,7 @@ const SkinAnalysisReport: React.FC<SkinAnalysisReportProps> = ({ userProfile, sh
             </div>
         </div>
 
-        {/* AI VERDICT SECTION - CLEAN CLINICAL STYLE */}
+        {/* AI VERDICT SECTION - CLEAN CLINICAL STYLE WITH TEAL LEFT LINE */}
         <div className="px-5 -mt-8 z-30 relative">
             <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-zinc-100/50">
                 <div className="flex items-center justify-between mb-6">
@@ -424,8 +426,8 @@ const SkinAnalysisReport: React.FC<SkinAnalysisReportProps> = ({ userProfile, sh
                     </div>
                 </div>
 
-                <div className="space-y-4">
-                    {/* Thinner font-light to match clean clinical style, dark teal highlights */}
+                {/* Left Teal Border Added, Use font-light for content */}
+                <div className="border-l-2 border-teal-500 pl-4">
                     <p className="text-[14px] text-zinc-600 font-light leading-[1.6] tracking-tight">
                         {renderVerdict(verdict.description)}
                     </p>

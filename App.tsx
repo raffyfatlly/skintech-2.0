@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   AppView, 
@@ -175,10 +174,10 @@ const App: React.FC = () => {
       persistState(updatedUser, shelf);
       setCurrentView(AppView.DASHBOARD);
       
-      // Trigger Guide Bubble after scan
+      // Trigger Guide Bubble after scan with a 5-second delay to allow dashboard absorption
       setTimeout(() => {
           setActiveGuide('SCAN');
-      }, 800);
+      }, 5000);
   };
 
   const handleProductFound = (product: Product) => {
